@@ -4,8 +4,34 @@ import time
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QSpinBox, QComboBox, QTableWidget,
                              QTableWidgetItem, QHeaderView)
-from PyQt5.QtCore import Qt, QTimer, QEvent
-from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtCore import Qt, QTimer, QEvent, QPoint, QRect
+from PyQt5.QtGui import QFont, QColor, QPainter, QBrush
+
+
+class DotOverlay(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.dot_visible = False
+        self.dot_color = QColor(255, 0, 0)  # Красная точка
+        self.dot_radius = 6  # Размер точки
+
+    def set_dot_visible(self, visible):
+        self.dot_visible = visible
+        self.update()
+
+    def paintEvent(self, event):
+        if self.dot_visible:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setBrush(QBrush(self.dot_color))
+            painter.setPen(Qt.NoPen)
+
+            # Рисуем точку в центре виджета со смещением на 1 пиксель вправо и вниз
+            center = self.rect().center()
+            offset_center = QPoint(center.x() + 3, center.y() + 2)
+            painter.drawEllipse(offset_center, self.dot_radius, self.dot_radius)
+            painter.end()
 
 
 class SchulteTableApp(QMainWindow):
@@ -50,6 +76,23 @@ class SchulteTableApp(QMainWindow):
         control_panel = QWidget()
         control_layout = QHBoxLayout()
         control_panel.setLayout(control_layout)
+
+        # Кнопка для отображения точки
+        self.dot_button = QPushButton("+")
+        self.dot_button.setCheckable(True)
+        self.dot_button.setStyleSheet("""
+            QPushButton {
+                font-size: 16px;
+                font-weight: bold;
+                border: 1px solid #aaa;
+                min-width: 30px;
+                max-width: 30px;
+            }
+            QPushButton:checked {
+                background-color: #d0d0d0;
+            }
+        """)
+        self.dot_button.toggled.connect(self.toggle_dot_visibility)
 
         # Элементы управления
         self.rows_spin = QSpinBox()
@@ -96,6 +139,7 @@ class SchulteTableApp(QMainWindow):
         self.start_button.setMinimumWidth(100)
         self.start_button.clicked.connect(self.toggle_game)
 
+        control_layout.addWidget(self.dot_button)
         control_layout.addWidget(self.rows_spin)
         control_layout.addWidget(self.cols_spin)
         control_layout.addWidget(self.game_mode_combo)
@@ -115,6 +159,11 @@ class SchulteTableApp(QMainWindow):
         self.table.setMouseTracking(True)
         self.table.viewport().installEventFilter(self)
 
+        # Оверлей для точки
+        self.dot_overlay = DotOverlay(self.table)
+        self.dot_overlay.hide()
+        self.table.viewport().stackUnder(self.dot_overlay)
+
         main_layout.addWidget(control_panel)
         main_layout.addWidget(self.table)
 
@@ -125,6 +174,27 @@ class SchulteTableApp(QMainWindow):
         self.attention_timer.timeout.connect(self.attention_timeout)
 
         self.generate_table()
+
+    def toggle_dot_visibility(self, visible):
+        if visible:
+            self.dot_overlay.show()
+            self.dot_overlay.set_dot_visible(True)
+            self.update_dot_position()
+        else:
+            self.dot_overlay.set_dot_visible(False)
+            self.dot_overlay.hide()
+
+    def update_dot_position(self):
+        if not hasattr(self, 'dot_overlay'):
+            return
+
+        if self.dot_button.isChecked():
+            self.dot_overlay.setGeometry(self.table.viewport().rect())
+            self.dot_overlay.update()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.update_dot_position()
 
     def clear_highlight(self):
         """Удаляет подсветку с активной ячейки"""
@@ -206,6 +276,9 @@ class SchulteTableApp(QMainWindow):
                 item.setForeground(self.cell_text_color)
                 item.setBackground(self.cell_bg_color)
                 self.table.setItem(i, j, item)
+
+        # Обновляем положение точки после генерации таблицы
+        self.update_dot_position()
 
     def toggle_game(self):
         if self.game_active:
