@@ -1,6 +1,8 @@
 # Schulte Tables
 
-A program for training peripheral vision, attention, and reading speed using Schulte tables.
+A program for training peripheral vision, attention, and reading speed using Schulte tables.  
+
+![Example of a Schulte table](screenshot.png)
 
 ## Features
 
