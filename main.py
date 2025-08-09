@@ -4,7 +4,7 @@ import time
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QSpinBox, QComboBox, QTableWidget,
                              QTableWidgetItem, QHeaderView)
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QEvent
 from PyQt5.QtGui import QFont, QColor
 
 
@@ -12,20 +12,27 @@ class SchulteTableApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        # Инициализируем игровые переменные в самом начале
+        self.game_active = False
+        self.current_target = 1
+        self.start_time = 0
+        self.last_hovered_cell = None
+
         # Конфигурационные переменные
         self.timer_font_size = 24
-        self.timer_text_color = QColor(0, 0, 0)  # Черный
-        self.timer_bg_color = QColor(240, 240, 240)  # Светло-серый
+        self.timer_text_color = QColor(0, 0, 0)
+        self.timer_bg_color = QColor(240, 240, 240)
 
         self.target_font_size = 36
         self.target_font_family = "Arial"
-        self.target_text_color = QColor(0, 0, 255)  # Синий
-        self.target_bg_color = QColor(240, 240, 240)  # Светло-серый
+        self.target_text_color = QColor(0, 0, 255)
+        self.target_bg_color = QColor(240, 240, 240)
+        self.target_completed_color = QColor(0, 128, 0)
 
         self.cell_font_size = 24
-        self.cell_text_color = QColor(0, 0, 0)  # Черный
-        self.cell_bg_color = QColor(255, 255, 255)  # Белый
-        self.cell_highlight_color = QColor(200, 230, 255)  # Голубой
+        self.cell_text_color = QColor(0, 0, 0)
+        self.cell_bg_color = QColor(255, 255, 255)
+        self.cell_highlight_color = QColor(200, 230, 255)
 
         self.initUI()
 
@@ -33,7 +40,6 @@ class SchulteTableApp(QMainWindow):
         self.setWindowTitle('Таблицы Шульте')
         self.setGeometry(100, 100, 800, 600)
 
-        # Основной виджет и layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout()
@@ -60,9 +66,9 @@ class SchulteTableApp(QMainWindow):
             "Нажатие с обновлением",
             "Игра по нажатию",
             "Игра по наведению",
-            "Удержание внимания 3с",
-            "Удержание внимания 5с",
-            "Удержание внимания 10с",
+            "Обновление каждые 3с",
+            "Обновление каждые 5с",
+            "Обновление каждые 10с",
             "Простой режим"
         ])
         self.game_mode_combo.setCurrentText("Игра по наведению")
@@ -70,11 +76,7 @@ class SchulteTableApp(QMainWindow):
         self.target_label = QLabel("1")
         target_font = QFont(self.target_font_family, self.target_font_size)
         self.target_label.setFont(target_font)
-        self.target_label.setStyleSheet(
-            f"color: {self.target_text_color.name()}; "
-            f"background-color: {self.target_bg_color.name()}; "
-            "padding: 5px;"
-        )
+        self.update_target_label_style()
         self.target_label.setAlignment(Qt.AlignCenter)
         self.target_label.setMinimumWidth(80)
 
@@ -93,7 +95,6 @@ class SchulteTableApp(QMainWindow):
         self.start_button.setMinimumWidth(100)
         self.start_button.clicked.connect(self.toggle_game)
 
-        # Добавляем элементы на панель управления
         control_layout.addWidget(self.rows_spin)
         control_layout.addWidget(self.cols_spin)
         control_layout.addWidget(self.game_mode_combo)
@@ -110,30 +111,37 @@ class SchulteTableApp(QMainWindow):
         self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.cellClicked.connect(self.cell_clicked)
 
-        # Включаем отслеживание движения мыши
         self.table.setMouseTracking(True)
         self.table.viewport().installEventFilter(self)
 
-        # Основной layout
         main_layout.addWidget(control_panel)
         main_layout.addWidget(self.table)
 
-        # Игровые переменные
-        self.game_active = False
-        self.current_target = 1
-        self.start_time = 0
+        # Таймеры
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
         self.attention_timer = QTimer()
         self.attention_timer.timeout.connect(self.attention_timeout)
-        self.last_hovered_cell = None
 
-        # Инициализация таблицы
         self.generate_table()
+
+    def update_target_label_style(self):
+        max_cells = self.rows_spin.value() * self.cols_spin.value()
+        if hasattr(self, 'current_target') and self.current_target > max_cells:
+            color = self.target_completed_color
+            self.target_label.setText(str(max_cells))  # Показываем максимальное число ячеек
+        else:
+            color = self.target_text_color
+
+        self.target_label.setStyleSheet(
+            f"color: {color.name()}; "
+            f"background-color: {self.target_bg_color.name()}; "
+            "padding: 5px;"
+        )
 
     def eventFilter(self, source, event):
         if (source is self.table.viewport() and
-                event.type() == event.MouseMove and
+                event.type() == QEvent.MouseMove and
                 self.game_active and
                 self.game_mode_combo.currentText() == "Игра по наведению"):
 
@@ -182,16 +190,15 @@ class SchulteTableApp(QMainWindow):
         self.game_active = True
         self.current_target = 1
         self.target_label.setText(str(self.current_target))
+        self.update_target_label_style()
         self.start_button.setText("Стоп")
         self.last_hovered_cell = None
 
-        # Сброс и запуск таймера
         self.start_time = time.time()
-        self.timer.start(10)  # Обновление каждые 10 мс
+        self.timer.start(10)
 
-        # Установка таймера для режимов удержания внимания
         mode = self.game_mode_combo.currentText()
-        if mode.startswith("Удержание"):
+        if mode.startswith("Обновление каждые"):
             if "3с" in mode:
                 interval = 3000
             elif "5с" in mode:
@@ -200,7 +207,6 @@ class SchulteTableApp(QMainWindow):
                 interval = 10000
             self.attention_timer.start(interval)
 
-        # Генерация новой таблицы
         self.generate_table()
 
     def stop_game(self):
@@ -218,7 +224,12 @@ class SchulteTableApp(QMainWindow):
 
     def attention_timeout(self):
         if self.game_active:
-            self.increment_target()
+            max_cells = self.rows_spin.value() * self.cols_spin.value()
+            if self.current_target <= max_cells:
+                self.increment_target()
+                self.generate_table()
+            else:
+                self.attention_timer.stop()
 
     def cell_clicked(self, row, col):
         if not self.game_active:
@@ -234,11 +245,16 @@ class SchulteTableApp(QMainWindow):
                     self.generate_table()
 
     def increment_target(self):
-        self.current_target += 1
-        self.target_label.setText(str(self.current_target))
+        max_cells = self.rows_spin.value() * self.cols_spin.value()
+        if self.current_target <= max_cells:
+            self.current_target += 1
+            if self.current_target > max_cells:
+                self.target_label.setText(str(max_cells))  # Показываем максимальное число ячеек
+            else:
+                self.target_label.setText(str(self.current_target))
+            self.update_target_label_style()
 
-        # Проверка на завершение игры
-        if self.current_target > self.rows_spin.value() * self.cols_spin.value():
+        if self.current_target > max_cells:
             self.stop_game()
 
     def keyPressEvent(self, event):
