@@ -12,11 +12,12 @@ class SchulteTableApp(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # Инициализируем игровые переменные в самом начале
+        # Инициализируем игровые переменные
         self.game_active = False
         self.current_target = 1
         self.start_time = 0
         self.last_hovered_cell = None
+        self.highlighted_cell = None  # Для хранения подсвеченной ячейки
 
         # Конфигурационные переменные
         self.timer_font_size = 24
@@ -125,11 +126,20 @@ class SchulteTableApp(QMainWindow):
 
         self.generate_table()
 
+    def clear_highlight(self):
+        """Удаляет подсветку с активной ячейки"""
+        if self.highlighted_cell:
+            row, col = self.highlighted_cell
+            item = self.table.item(row, col)
+            if item:
+                item.setBackground(self.cell_bg_color)
+            self.highlighted_cell = None
+
     def update_target_label_style(self):
         max_cells = self.rows_spin.value() * self.cols_spin.value()
         if hasattr(self, 'current_target') and self.current_target > max_cells:
             color = self.target_completed_color
-            self.target_label.setText(str(max_cells))  # Показываем максимальное число ячеек
+            self.target_label.setText(str(max_cells))
         else:
             color = self.target_text_color
 
@@ -150,6 +160,20 @@ class SchulteTableApp(QMainWindow):
             if item is not None:
                 row, col = item.row(), item.column()
                 if (row, col) != self.last_hovered_cell:
+                    # Удаляем подсветку с предыдущей ячейки
+                    if self.last_hovered_cell:
+                        prev_row, prev_col = self.last_hovered_cell
+                        prev_item = self.table.item(prev_row, prev_col)
+                        if prev_item:
+                            prev_item.setBackground(self.cell_bg_color)
+
+                    # Подсвечиваем новую ячейку
+                    if item.text() == str(self.current_target):
+                        item.setBackground(self.cell_highlight_color)
+                        self.highlighted_cell = (row, col)
+                    else:
+                        self.highlighted_cell = None
+
                     self.last_hovered_cell = (row, col)
                     self.check_cell_hover(row, col)
         return super().eventFilter(source, event)
@@ -163,6 +187,9 @@ class SchulteTableApp(QMainWindow):
             self.increment_target()
 
     def generate_table(self):
+        # Удаляем подсветку перед генерацией новой таблицы
+        self.clear_highlight()
+
         rows = self.rows_spin.value()
         cols = self.cols_spin.value()
         self.table.setRowCount(rows)
@@ -193,6 +220,7 @@ class SchulteTableApp(QMainWindow):
         self.update_target_label_style()
         self.start_button.setText("Стоп")
         self.last_hovered_cell = None
+        self.clear_highlight()  # Очищаем подсветку при старте игры
 
         self.start_time = time.time()
         self.timer.start(10)
@@ -214,6 +242,7 @@ class SchulteTableApp(QMainWindow):
         self.start_button.setText("Старт")
         self.timer.stop()
         self.attention_timer.stop()
+        self.clear_highlight()  # Очищаем подсветку при остановке игры
 
     def update_timer(self):
         elapsed = time.time() - self.start_time
@@ -249,7 +278,7 @@ class SchulteTableApp(QMainWindow):
         if self.current_target <= max_cells:
             self.current_target += 1
             if self.current_target > max_cells:
-                self.target_label.setText(str(max_cells))  # Показываем максимальное число ячеек
+                self.target_label.setText(str(max_cells))
             else:
                 self.target_label.setText(str(self.current_target))
             self.update_target_label_style()
