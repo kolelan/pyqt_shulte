@@ -8,6 +8,20 @@ from PyQt5.QtCore import Qt, QTimer, QEvent, QPoint, QRect
 from PyQt5.QtGui import QFont, QColor, QPainter, QBrush
 
 
+HEADER_APP = "Schulte tables"
+CLICK_UPDATE_MODE = "Click - update"
+TAP_GAME_MODE = "Tap game"
+HOVER_GAME_MODE = "Hover game"
+UPDATE_EVERY_MODE = "Update every"
+UPDATE_EVERY_3_MODE = "Update every 3с"
+UPDATE_EVERY_5_MODE = "Update every 5с"
+UPDATE_EVERY_10_MODE = "Update every 10с"
+SIMPLE_GAME_MODE = "Simple mode"
+START_BUTTON = "Start"
+STOP_BUTTON = "Stop"
+ADD_CENTER_X = 0
+ADD_CENTER_Y = 0
+
 class DotOverlay(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -64,7 +78,7 @@ class SchulteTableApp(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle('Таблицы Шульте')
+        self.setWindowTitle(HEADER_APP)
         self.setGeometry(100, 100, 800, 600)
 
         central_widget = QWidget()
@@ -98,24 +112,24 @@ class SchulteTableApp(QMainWindow):
         self.rows_spin = QSpinBox()
         self.rows_spin.setRange(2, 10)
         self.rows_spin.setValue(4)
-        self.rows_spin.setPrefix("Строки: ")
+        self.rows_spin.setPrefix("Rows: ")
 
         self.cols_spin = QSpinBox()
         self.cols_spin.setRange(2, 10)
         self.cols_spin.setValue(4)
-        self.cols_spin.setPrefix("Столбцы: ")
+        self.cols_spin.setPrefix("Columns: ")
 
         self.game_mode_combo = QComboBox()
         self.game_mode_combo.addItems([
-            "Нажатие с обновлением",
-            "Игра по нажатию",
-            "Игра по наведению",
-            "Обновление каждые 3с",
-            "Обновление каждые 5с",
-            "Обновление каждые 10с",
-            "Простой режим"
+            CLICK_UPDATE_MODE,
+            TAP_GAME_MODE,
+            HOVER_GAME_MODE,
+            UPDATE_EVERY_3_MODE,
+            UPDATE_EVERY_5_MODE,
+            UPDATE_EVERY_10_MODE,
+            SIMPLE_GAME_MODE
         ])
-        self.game_mode_combo.setCurrentText("Игра по наведению")
+        self.game_mode_combo.setCurrentText(HOVER_GAME_MODE)
 
         self.target_label = QLabel("1")
         target_font = QFont(self.target_font_family, self.target_font_size)
@@ -135,7 +149,7 @@ class SchulteTableApp(QMainWindow):
         self.timer_label.setAlignment(Qt.AlignCenter)
         self.timer_label.setMinimumWidth(150)
 
-        self.start_button = QPushButton("Старт")
+        self.start_button = QPushButton(START_BUTTON)
         self.start_button.setMinimumWidth(100)
         self.start_button.clicked.connect(self.toggle_game)
 
@@ -223,7 +237,7 @@ class SchulteTableApp(QMainWindow):
         if (source is self.table.viewport() and
                 event.type() == QEvent.MouseMove and
                 self.game_active and
-                self.game_mode_combo.currentText() == "Игра по наведению"):
+                self.game_mode_combo.currentText() == HOVER_GAME_MODE):
 
             pos = event.pos()
             item = self.table.itemAt(pos)
@@ -291,7 +305,7 @@ class SchulteTableApp(QMainWindow):
         self.current_target = 1
         self.target_label.setText(str(self.current_target))
         self.update_target_label_style()
-        self.start_button.setText("Стоп")
+        self.start_button.setText(STOP_BUTTON)
         self.last_hovered_cell = None
         self.clear_highlight()  # Очищаем подсветку при старте игры
 
@@ -299,7 +313,7 @@ class SchulteTableApp(QMainWindow):
         self.timer.start(10)
 
         mode = self.game_mode_combo.currentText()
-        if mode.startswith("Обновление каждые"):
+        if mode.startswith(UPDATE_EVERY_MODE):
             if "3с" in mode:
                 interval = 3000
             elif "5с" in mode:
@@ -312,7 +326,7 @@ class SchulteTableApp(QMainWindow):
 
     def stop_game(self):
         self.game_active = False
-        self.start_button.setText("Старт")
+        self.start_button.setText(START_BUTTON)
         self.timer.stop()
         self.attention_timer.stop()
         self.clear_highlight()  # Очищаем подсветку при остановке игры
@@ -340,10 +354,10 @@ class SchulteTableApp(QMainWindow):
         mode = self.game_mode_combo.currentText()
         item = self.table.item(row, col)
 
-        if mode in ["Нажатие с обновлением", "Игра по нажатию"]:
+        if mode in [CLICK_UPDATE_MODE, TAP_GAME_MODE]:
             if item and item.text() == str(self.current_target):
                 self.increment_target()
-                if mode == "Нажатие с обновлением":
+                if mode == CLICK_UPDATE_MODE:
                     self.generate_table()
 
     def increment_target(self):
