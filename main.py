@@ -1,11 +1,18 @@
-import sys
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.spinner import Spinner
+from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.widget import Widget
+from kivy.graphics import Color, Ellipse
+from kivy.clock import Clock
+from kivy.properties import StringProperty, NumericProperty, BooleanProperty, ListProperty
+from kivy.core.window import Window
+from kivy.metrics import dp
 import random
 import time
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                             QPushButton, QLabel, QSpinBox, QComboBox, QTableWidget,
-                             QTableWidgetItem, QHeaderView)
-from PyQt5.QtCore import Qt, QTimer, QEvent, QPoint
-from PyQt5.QtGui import QFont, QColor, QPainter, QBrush
 
 # Language constants
 LANGUAGES = {
@@ -15,495 +22,415 @@ LANGUAGES = {
 }
 
 # English texts
-HEADER_APP = "Schulte tables"
-CLICK_UPDATE_MODE = "Click - update"
-TAP_GAME_MODE = "Tap game"
-HOVER_GAME_MODE = "Hover game"
-UPDATE_EVERY_MODE = "Update every"
-UPDATE_EVERY_3_MODE = "Update every 3s"
-UPDATE_EVERY_5_MODE = "Update every 5s"
-UPDATE_EVERY_10_MODE = "Update every 10s"
-SIMPLE_GAME_MODE = "Simple mode"
-START_BUTTON = "Start"
-STOP_BUTTON = "Stop"
-ROWS_PREFIX = "Rows: "
-COLS_PREFIX = "Columns: "
+TEXTS = {
+    'En': {
+        'header': "Schulte tables",
+        'click_update': "Click - update",
+        'tap_game': "Tap game",
+        'hover_game': "Hover game",
+        'update_every': "Update every",
+        'update_3': "Update every 3s",
+        'update_5': "Update every 5s",
+        'update_10': "Update every 10s",
+        'simple_mode': "Simple mode",
+        'start': "Start",
+        'stop': "Stop",
+        'rows': "Rows: ",
+        'cols': "Columns: "
+    },
+    'Ru': {
+        'header': "Таблицы Шульте",
+        'click_update': "Нажатие с обновлением",
+        'tap_game': "Игра по нажатию",
+        'hover_game': "Игра по наведению",
+        'update_every': "Обновление каждые",
+        'update_3': "Обновление каждые 3с",
+        'update_5': "Обновление каждые 5с",
+        'update_10': "Обновление каждые 10с",
+        'simple_mode': "Простой режим",
+        'start': "Старт",
+        'stop': "Стоп",
+        'rows': "Строки: ",
+        'cols': "Столбцы: "
+    },
+    'Ch': {
+        'header': "舒尔特表格",
+        'click_update': "点击刷新模式",
+        'tap_game': "点击游戏模式",
+        'hover_game': "悬停游戏模式",
+        'update_every': "自动刷新",
+        'update_3': "每3秒刷新",
+        'update_5': "每5秒刷新",
+        'update_10': "每10秒刷新",
+        'simple_mode': "简单模式",
+        'start': "开始",
+        'stop': "停止",
+        'rows': "行数: ",
+        'cols': "列数: "
+    }
+}
 
-ADD_CENTER_X = 0
-ADD_CENTER_Y = 0
-
-# Russian texts
-HEADER_APP_RU = "Таблицы Шульте"
-CLICK_UPDATE_MODE_RU = "Нажатие с обновлением"
-TAP_GAME_MODE_RU = "Игра по нажатию"
-HOVER_GAME_MODE_RU = "Игра по наведению"
-UPDATE_EVERY_MODE_RU = "Обновление каждые"
-UPDATE_EVERY_3_MODE_RU = "Обновление каждые 3с"
-UPDATE_EVERY_5_MODE_RU = "Обновление каждые 5с"
-UPDATE_EVERY_10_MODE_RU = "Обновление каждые 10с"
-SIMPLE_GAME_MODE_RU = "Простой режим"
-START_BUTTON_RU = "Старт"
-STOP_BUTTON_RU = "Стоп"
-ROWS_PREFIX_RU = "Строки: "
-COLS_PREFIX_RU = "Столбцы: "
-
-# Chinese texts
-HEADER_APP_CH = "舒尔特表格"
-CLICK_UPDATE_MODE_CH = "点击刷新模式"
-TAP_GAME_MODE_CH = "点击游戏模式"
-HOVER_GAME_MODE_CH = "悬停游戏模式"
-UPDATE_EVERY_MODE_CH = "自动刷新"
-UPDATE_EVERY_3_MODE_CH = "每3秒刷新"
-UPDATE_EVERY_5_MODE_CH = "每5秒刷新"
-UPDATE_EVERY_10_MODE_CH = "每10秒刷新"
-SIMPLE_GAME_MODE_CH = "简单模式"
-START_BUTTON_CH = "开始"
-STOP_BUTTON_CH = "停止"
-ROWS_PREFIX_CH = "行数: "
-COLS_PREFIX_CH = "列数: "
-
-MODE_CLICK_UPDATE = "CLICK_UPDATE"
-MODE_TAP_GAME = "TAP_GAME"
-MODE_HOVER_GAME = "HOVER_GAME"
-MODE_UPDATE_3 = "UPDATE_3"
-MODE_UPDATE_5 = "UPDATE_5"
-MODE_UPDATE_10 = "UPDATE_10"
-MODE_SIMPLE = "SIMPLE"
+MODES = {
+    'CLICK_UPDATE': 'click_update',
+    'TAP_GAME': 'tap_game',
+    'HOVER_GAME': 'hover_game',
+    'UPDATE_3': 'update_3',
+    'UPDATE_5': 'update_5',
+    'UPDATE_10': 'update_10',
+    'SIMPLE': 'simple_mode'
+}
 
 
-class DotOverlay(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.dot_visible = False
-        self.dot_color = QColor(255, 0, 0)
-        self.dot_radius = 4
+class DotOverlay(Widget):
+    visible = BooleanProperty(False)
+    color = ListProperty([1, 0, 0, 1])  # Red color
+    radius = NumericProperty(dp(4))
+    pos_offset = ListProperty([dp(3), dp(2)])
 
-    def set_dot_visible(self, visible):
-        self.dot_visible = visible
-        self.update()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bind(visible=self.update_canvas)
+        self.bind(size=self.update_canvas)
+        self.bind(pos=self.update_canvas)
 
-    def paintEvent(self, event):
-        if self.dot_visible:
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.Antialiasing)
-            painter.setBrush(QBrush(self.dot_color))
-            painter.setPen(Qt.NoPen)
-            center = self.rect().center()
-            offset_center = QPoint(center.x() + 3, center.y() + 2)
-            painter.drawEllipse(offset_center, self.dot_radius, self.dot_radius)
-            painter.end()
+    def update_canvas(self, *args):
+        self.canvas.clear()
+        if self.visible:
+            with self.canvas:
+                Color(*self.color)
+                center_x = self.center_x + self.pos_offset[0]
+                center_y = self.center_y + self.pos_offset[1]
+                Ellipse(pos=(center_x - self.radius, center_y - self.radius),
+                        size=(self.radius * 2, self.radius * 2))
 
-class SchulteTableApp(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.current_language = 'En'
-        self.game_active = False
-        self.current_target = 1
-        self.start_time = 0
-        self.last_hovered_cell = None
-        self.highlighted_cell = None
 
-        # Configuration variables
-        self.timer_font_size = 24
-        self.timer_text_color = QColor(0, 0, 0)
-        self.timer_bg_color = QColor(240, 240, 240)
+class SchulteTable(GridLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.rows = 4
+        self.cols = 4
+        self.cells = []
+        self.current_hover = None
+        self.bind(size=self.update_dot_position)
 
-        self.target_font_size = 36
-        self.target_font_family = "Arial"
-        self.target_text_color = QColor(0, 0, 255)
-        self.target_bg_color = QColor(240, 240, 240)
-        self.target_completed_color = QColor(0, 128, 0)
-
-        self.cell_font_size = 24
-        self.cell_text_color = QColor(0, 0, 0)
-        self.cell_bg_color = QColor(255, 255, 255)
-        self.cell_highlight_color = QColor(200, 230, 255)
-
-        self.initUI()
-
-    def initUI(self):
-        self.setWindowTitle(HEADER_APP)
-        self.setGeometry(100, 100, 800, 600)
-
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout()
-        central_widget.setLayout(main_layout)
-
-        # Control panel
-        control_panel = QWidget()
-        control_layout = QHBoxLayout()
-        control_panel.setLayout(control_layout)
-
-        # Language selection
-        self.language_combo = QComboBox()
-        self.language_combo.addItems(LANGUAGES.values())
-        self.language_combo.currentTextChanged.connect(self.change_language)
-        self.language_combo.setCurrentText(LANGUAGES['En'])
-
-        # Dot button
-        self.dot_button = QPushButton("+")
-        self.dot_button.setCheckable(True)
-        self.dot_button.setStyleSheet("""
-            QPushButton {
-                font-size: 16px;
-                font-weight: bold;
-                border: 1px solid #aaa;
-                min-width: 30px;
-                max-width: 30px;
-            }
-            QPushButton:checked {
-                background-color: #d0d0d0;
-            }
-        """)
-        self.dot_button.toggled.connect(self.toggle_dot_visibility)
-
-        # Controls
-        self.rows_spin = QSpinBox()
-        self.rows_spin.setRange(2, 10)
-        self.rows_spin.setValue(4)
-        self.rows_spin.setPrefix(ROWS_PREFIX)
-
-        self.cols_spin = QSpinBox()
-        self.cols_spin.setRange(2, 10)
-        self.cols_spin.setValue(4)
-        self.cols_spin.setPrefix(COLS_PREFIX)
-
-        self.game_mode_combo = QComboBox()
-        self.update_game_modes()
-
-        self.target_label = QLabel("1")
-        target_font = QFont(self.target_font_family, self.target_font_size)
-        self.target_label.setFont(target_font)
-        self.update_target_label_style()
-        self.target_label.setAlignment(Qt.AlignCenter)
-        self.target_label.setMinimumWidth(80)
-
-        self.timer_label = QLabel("00:00.000")
-        timer_font = QFont("Arial", self.timer_font_size)
-        self.timer_label.setFont(timer_font)
-        self.timer_label.setStyleSheet(
-            f"color: {self.timer_text_color.name()}; "
-            f"background-color: {self.timer_bg_color.name()}; "
-            "padding: 5px;"
-        )
-        self.timer_label.setAlignment(Qt.AlignCenter)
-        self.timer_label.setMinimumWidth(150)
-
-        self.start_button = QPushButton(START_BUTTON)
-        self.start_button.setMinimumWidth(100)
-        self.start_button.clicked.connect(self.toggle_game)
-
-        control_layout.addWidget(self.language_combo)
-        control_layout.addWidget(self.dot_button)
-        control_layout.addWidget(self.rows_spin)
-        control_layout.addWidget(self.cols_spin)
-        control_layout.addWidget(self.game_mode_combo)
-        control_layout.addWidget(self.target_label)
-        control_layout.addWidget(self.timer_label)
-        control_layout.addWidget(self.start_button)
-
-        # Table
-        self.table = QTableWidget()
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table.horizontalHeader().setVisible(False)
-        self.table.verticalHeader().setVisible(False)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.cellClicked.connect(self.cell_clicked)
-        self.table.setMouseTracking(True)
-        self.table.viewport().installEventFilter(self)
-
-        # Dot overlay
-        self.dot_overlay = DotOverlay(self.table)
-        self.dot_overlay.hide()
-        self.table.viewport().stackUnder(self.dot_overlay)
-
-        main_layout.addWidget(control_panel)
-        main_layout.addWidget(self.table)
-
-        # Timers
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_timer)
-        self.attention_timer = QTimer()
-        self.attention_timer.timeout.connect(self.attention_timeout)
-
-        self.generate_table()
-
-    def change_language(self, language_name):
-        # Find language code
-        for code, name in LANGUAGES.items():
-            if name == language_name:
-                self.current_language = code
-                break
-
-        # Update UI elements
-        self.update_ui_language()
-
-    def update_ui_language(self):
-        # Update window title
-        if self.current_language == 'Ru':
-            self.setWindowTitle(HEADER_APP_RU)
-        elif self.current_language == 'Ch':
-            self.setWindowTitle(HEADER_APP_CH)
-        else:
-            self.setWindowTitle(HEADER_APP)
-
-        # Update button texts
-        self.update_button_text()
-        self.rows_spin.setPrefix(ROWS_PREFIX_RU if self.current_language == 'Ru' else
-                                 ROWS_PREFIX_CH if self.current_language == 'Ch' else
-                                 ROWS_PREFIX)
-        self.cols_spin.setPrefix(COLS_PREFIX_RU if self.current_language == 'Ru' else
-                                 COLS_PREFIX_CH if self.current_language == 'Ch' else
-                                 COLS_PREFIX)
-
-        # Update game modes
-        self.update_game_modes()
-
-    def update_game_modes(self):
-        self.game_mode_combo.clear()
-
-        if self.current_language == 'Ru':
-            modes = [
-                (CLICK_UPDATE_MODE_RU, MODE_CLICK_UPDATE),
-                (TAP_GAME_MODE_RU, MODE_TAP_GAME),
-                (HOVER_GAME_MODE_RU, MODE_HOVER_GAME),
-                (UPDATE_EVERY_3_MODE_RU, MODE_UPDATE_3),
-                (UPDATE_EVERY_5_MODE_RU, MODE_UPDATE_5),
-                (UPDATE_EVERY_10_MODE_RU, MODE_UPDATE_10),
-                (SIMPLE_GAME_MODE_RU, MODE_SIMPLE)
-            ]
-        elif self.current_language == 'Ch':
-            modes = [
-                (CLICK_UPDATE_MODE_CH, MODE_CLICK_UPDATE),
-                (TAP_GAME_MODE_CH, MODE_TAP_GAME),
-                (HOVER_GAME_MODE_CH, MODE_HOVER_GAME),
-                (UPDATE_EVERY_3_MODE_CH, MODE_UPDATE_3),
-                (UPDATE_EVERY_5_MODE_CH, MODE_UPDATE_5),
-                (UPDATE_EVERY_10_MODE_CH, MODE_UPDATE_10),
-                (SIMPLE_GAME_MODE_CH, MODE_SIMPLE)
-            ]
-        else:
-            modes = [
-                (CLICK_UPDATE_MODE, MODE_CLICK_UPDATE),
-                (TAP_GAME_MODE, MODE_TAP_GAME),
-                (HOVER_GAME_MODE, MODE_HOVER_GAME),
-                (UPDATE_EVERY_3_MODE, MODE_UPDATE_3),
-                (UPDATE_EVERY_5_MODE, MODE_UPDATE_5),
-                (UPDATE_EVERY_10_MODE, MODE_UPDATE_10),
-                (SIMPLE_GAME_MODE, MODE_SIMPLE)
-            ]
-
-        for text, data in modes:
-            self.game_mode_combo.addItem(text, data)
-
-        # Установите hover mode по умолчанию
-        self.game_mode_combo.setCurrentIndex(2)
-
-    def toggle_dot_visibility(self, visible):
-        if visible:
-            self.dot_overlay.show()
-            self.dot_overlay.set_dot_visible(True)
-            self.update_dot_position()
-        else:
-            self.dot_overlay.set_dot_visible(False)
-            self.dot_overlay.hide()
-
-    def update_dot_position(self):
-        if not hasattr(self, 'dot_overlay'):
-            return
-
-        if self.dot_button.isChecked():
-            self.dot_overlay.setGeometry(self.table.viewport().rect())
-            self.dot_overlay.update()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.update_dot_position()
-
-    def clear_highlight(self):
-        """Удаляет подсветку с активной ячейки"""
-        if self.highlighted_cell:
-            row, col = self.highlighted_cell
-            item = self.table.item(row, col)
-            if item:
-                item.setBackground(self.cell_bg_color)
-            self.highlighted_cell = None
-
-    def update_target_label_style(self):
-        max_cells = self.rows_spin.value() * self.cols_spin.value()
-        if hasattr(self, 'current_target') and self.current_target > max_cells:
-            color = self.target_completed_color
-            self.target_label.setText(str(max_cells))
-        else:
-            color = self.target_text_color
-
-        self.target_label.setStyleSheet(
-            f"color: {color.name()}; "
-            f"background-color: {self.target_bg_color.name()}; "
-            "padding: 5px;"
-        )
-
-    def eventFilter(self, source, event):
-        if (source is self.table.viewport() and
-                event.type() == QEvent.MouseMove and
-                self.game_active and
-                self.game_mode_combo.currentData() == MODE_HOVER_GAME):
-
-            pos = event.pos()
-            item = self.table.itemAt(pos)
-            if item is not None:
-                row, col = item.row(), item.column()
-                if (row, col) != self.last_hovered_cell:
-                    # Удаляем подсветку с предыдущей ячейки
-                    if self.last_hovered_cell:
-                        prev_row, prev_col = self.last_hovered_cell
-                        prev_item = self.table.item(prev_row, prev_col)
-                        if prev_item:
-                            prev_item.setBackground(self.cell_bg_color)
-
-                    # Подсвечиваем новую ячейку
-                    if item.text() == str(self.current_target):
-                        item.setBackground(self.cell_highlight_color)
-                        self.highlighted_cell = (row, col)
-                    else:
-                        self.highlighted_cell = None
-
-                    self.last_hovered_cell = (row, col)
-                    self.check_cell_hover(row, col)
-        return super().eventFilter(source, event)
-
-    def check_cell_hover(self, row, col):
-        if not self.game_active:
-            return
-
-        item = self.table.item(row, col)
-        if item and item.text() == str(self.current_target):
-            self.increment_target()
-
-    def generate_table(self):
-        # Удаляем подсветку перед генерацией новой таблицы
-        self.clear_highlight()
-
-        rows = self.rows_spin.value()
-        cols = self.cols_spin.value()
-        self.table.setRowCount(rows)
-        self.table.setColumnCount(cols)
+    def generate_table(self, rows, cols):
+        self.clear_widgets()
+        self.rows = rows
+        self.cols = cols
+        self.cells = []
 
         numbers = list(range(1, rows * cols + 1))
         random.shuffle(numbers)
 
-        for i in range(rows):
-            for j in range(cols):
-                item = QTableWidgetItem(str(numbers.pop()))
-                item.setTextAlignment(Qt.AlignCenter)
-                item.setFont(QFont("Arial", self.cell_font_size))
-                item.setForeground(self.cell_text_color)
-                item.setBackground(self.cell_bg_color)
-                self.table.setItem(i, j, item)
+        for i in range(rows * cols):
+            btn = Button(text=str(numbers[i]),
+                         font_size=dp(24),
+                         background_normal='',
+                         background_color=[1, 1, 1, 1],
+                         color=[0, 0, 0, 1])
+            btn.number = numbers[i]
+            btn.bind(on_press=self.on_cell_click)
+            btn.bind(on_enter=self.on_cell_enter)
+            btn.bind(on_leave=self.on_cell_leave)
+            self.cells.append(btn)
+            self.add_widget(btn)
 
-        # Обновляем положение точки после генерации таблицы
-        self.update_dot_position()
+    def on_cell_click(self, instance):
+        app = App.get_running_app()
+        if app.game_active and app.game_mode in ['CLICK_UPDATE', 'TAP_GAME']:
+            if instance.number == app.current_target:
+                app.increment_target()
+                if app.game_mode == 'CLICK_UPDATE':
+                    self.generate_table(app.rows_spin, app.cols_spin)
 
-    def toggle_game(self):
+    def on_cell_enter(self, instance):
+        app = App.get_running_app()
+        if app.game_active and app.game_mode == 'HOVER_GAME':
+            if instance.number == app.current_target:
+                instance.background_color = [0.8, 0.9, 1, 1]  # Highlight color
+                app.increment_target()
+            self.current_hover = instance
+
+    def on_cell_leave(self, instance):
+        instance.background_color = [1, 1, 1, 1]
+        self.current_hover = None
+
+    def update_dot_position(self, *args):
+        app = App.get_running_app()
+        if hasattr(app, 'dot_overlay'):
+            app.dot_overlay.center = self.center
+
+
+class SchulteTableApp(App):
+    current_language = StringProperty('En')
+    game_active = BooleanProperty(False)
+    current_target = NumericProperty(1)
+    timer_text = StringProperty('00:00.000')
+    target_text = StringProperty('1')
+    button_text = StringProperty('Start')
+    rows_spin = NumericProperty(4)
+    cols_spin = NumericProperty(4)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.start_time = 0
+        self.timer_event = None
+        self.attention_timer = None
+        self.game_mode = 'HOVER_GAME'
+        self.dot_visible = False
+
+    def build(self):
+        self.title = TEXTS[self.current_language]['header']
+        self.root = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
+
+        # Control panel
+        controls = BoxLayout(size_hint=(1, None), height=dp(50), spacing=dp(10))
+
+        # Language selection
+        self.language_spinner = Spinner(
+            text='English',
+            values=list(LANGUAGES.values()),
+            size_hint=(None, None),
+            size=(dp(100), dp(44))
+        )
+        self.language_spinner.bind(text=self.on_language_change)
+
+        # Dot toggle
+        self.dot_button = ToggleButton(
+            text='+',
+            size_hint=(None, None),
+            size=(dp(44), dp(44)),
+            group='dot',
+            font_size=dp(16)
+        )
+        self.dot_button.bind(state=self.on_dot_toggle)
+
+        # Rows and columns spinners
+        self.rows_spinner = Spinner(
+            text=f"{TEXTS[self.current_language]['rows']}4",
+            values=[f"{TEXTS[self.current_language]['rows']}{i}" for i in range(2, 11)],
+            size_hint=(None, None),
+            size=(dp(100), dp(44))
+        )
+        self.rows_spinner.bind(text=self.on_rows_change)
+
+        self.cols_spinner = Spinner(
+            text=f"{TEXTS[self.current_language]['cols']}4",
+            values=[f"{TEXTS[self.current_language]['cols']}{i}" for i in range(2, 11)],
+            size_hint=(None, None),
+            size=(dp(100), dp(44))
+        )
+        self.cols_spinner.bind(text=self.on_cols_change)
+
+        # Game mode
+        self.mode_spinner = Spinner(
+            text=TEXTS[self.current_language]['hover_game'],
+            values=[
+                TEXTS[self.current_language]['click_update'],
+                TEXTS[self.current_language]['tap_game'],
+                TEXTS[self.current_language]['hover_game'],
+                TEXTS[self.current_language]['update_3'],
+                TEXTS[self.current_language]['update_5'],
+                TEXTS[self.current_language]['update_10'],
+                TEXTS[self.current_language]['simple_mode']
+            ],
+            size_hint=(None, None),
+            size=(dp(150), dp(44))
+        )
+        self.mode_spinner.bind(text=self.on_mode_change)
+
+        # Target label
+        self.target_label = Label(
+            text='1',
+            font_size=dp(36),
+            color=[0, 0, 1, 1],
+            size_hint=(None, None),
+            size=(dp(80), dp(44))
+        )
+
+        # Timer label
+        self.timer_label = Label(
+            text='00:00.000',
+            font_size=dp(24),
+            color=[0, 0, 0, 1],
+            size_hint=(None, None),
+            size=(dp(150), dp(44))
+        )
+
+        # Start/Stop button
+        self.start_button = Button(
+            text=TEXTS[self.current_language]['start'],
+            size_hint=(None, None),
+            size=(dp(100), dp(44))
+        )
+        self.start_button.bind(on_press=self.toggle_game)
+
+        # Add controls to panel
+        controls.add_widget(self.language_spinner)
+        controls.add_widget(self.dot_button)
+        controls.add_widget(self.rows_spinner)
+        controls.add_widget(self.cols_spinner)
+        controls.add_widget(self.mode_spinner)
+        controls.add_widget(self.target_label)
+        controls.add_widget(self.timer_label)
+        controls.add_widget(self.start_button)
+
+        # Table
+        self.table = SchulteTable()
+
+        # Dot overlay
+        self.dot_overlay = DotOverlay(size=self.table.size)
+        self.table.add_widget(self.dot_overlay)
+        self.dot_overlay.visible = False
+
+        self.root.add_widget(controls)
+        self.root.add_widget(self.table)
+
+        # Generate initial table
+        self.table.generate_table(self.rows_spin, self.cols_spin)
+
+        return self.root
+
+    def on_language_change(self, spinner, text):
+        for code, name in LANGUAGES.items():
+            if name == text:
+                self.current_language = code
+                break
+
+        self.update_ui_language()
+
+    def update_ui_language(self):
+        self.title = TEXTS[self.current_language]['header']
+        self.start_button.text = TEXTS[self.current_language]['start'] if not self.game_active else \
+        TEXTS[self.current_language]['stop']
+
+        # Update spinners text
+        self.rows_spinner.text = f"{TEXTS[self.current_language]['rows']}{self.rows_spin}"
+        self.rows_spinner.values = [f"{TEXTS[self.current_language]['rows']}{i}" for i in range(2, 11)]
+
+        self.cols_spinner.text = f"{TEXTS[self.current_language]['cols']}{self.cols_spin}"
+        self.cols_spinner.values = [f"{TEXTS[self.current_language]['cols']}{i}" for i in range(2, 11)]
+
+        # Update mode spinner
+        mode_texts = [
+            TEXTS[self.current_language]['click_update'],
+            TEXTS[self.current_language]['tap_game'],
+            TEXTS[self.current_language]['hover_game'],
+            TEXTS[self.current_language]['update_3'],
+            TEXTS[self.current_language]['update_5'],
+            TEXTS[self.current_language]['update_10'],
+            TEXTS[self.current_language]['simple_mode']
+        ]
+
+        current_mode_text = self.mode_spinner.text
+        self.mode_spinner.values = mode_texts
+
+        # Try to keep the same mode if possible
+        for mode_text in mode_texts:
+            if mode_text == current_mode_text:
+                self.mode_spinner.text = mode_text
+                break
+        else:
+            # Default to hover game if exact match not found
+            self.mode_spinner.text = TEXTS[self.current_language]['hover_game']
+
+    def on_dot_toggle(self, instance, state):
+        self.dot_visible = state == 'down'
+        self.dot_overlay.visible = self.dot_visible
+
+    def on_rows_change(self, spinner, text):
+        prefix = TEXTS[self.current_language]['rows']
+        self.rows_spin = int(text[len(prefix):])
+        if self.game_active:
+            self.table.generate_table(self.rows_spin, self.cols_spin)
+
+    def on_cols_change(self, spinner, text):
+        prefix = TEXTS[self.current_language]['cols']
+        self.cols_spin = int(text[len(prefix):])
+        if self.game_active:
+            self.table.generate_table(self.rows_spin, self.cols_spin)
+
+    def on_mode_change(self, spinner, text):
+        for mode, key in MODES.items():
+            if text == TEXTS[self.current_language][key]:
+                self.game_mode = mode
+                break
+
+    def toggle_game(self, instance):
         if self.game_active:
             self.stop_game()
         else:
             self.start_game()
-        # Обновляем текст кнопки после переключения
         self.update_button_text()
 
     def start_game(self):
         self.game_active = True
         self.current_target = 1
-        self.target_label.setText(str(self.current_target))
-        self.update_target_label_style()
-        self.update_button_text()  # Обновляем текст кнопки
-        self.last_hovered_cell = None
-        self.clear_highlight()
+        self.target_label.text = str(self.current_target)
+        self.target_label.color = [0, 0, 1, 1]  # Blue for current target
+        self.update_button_text()
 
         self.start_time = time.time()
-        self.timer.start(10)
+        self.timer_event = Clock.schedule_interval(self.update_timer, 0.01)
 
-        mode = self.game_mode_combo.currentData()
-        if mode in [MODE_UPDATE_3, MODE_UPDATE_5, MODE_UPDATE_10]:
-            if mode == MODE_UPDATE_3:
-                interval = 3000
-            elif mode == MODE_UPDATE_5:
-                interval = 5000
-            else:
-                interval = 10000
-            self.attention_timer.start(interval)
+        if self.game_mode in ['UPDATE_3', 'UPDATE_5', 'UPDATE_10']:
+            interval = 3 if self.game_mode == 'UPDATE_3' else 5 if self.game_mode == 'UPDATE_5' else 10
+            self.attention_timer = Clock.schedule_interval(self.attention_timeout, interval)
 
-        self.generate_table()
+        self.table.generate_table(self.rows_spin, self.cols_spin)
 
     def stop_game(self):
         self.game_active = False
-        self.update_button_text()  # Обновляем текст кнопки
-        self.timer.stop()
-        self.attention_timer.stop()
-        self.clear_highlight()
+        self.update_button_text()
+        if self.timer_event:
+            self.timer_event.cancel()
+        if self.attention_timer:
+            self.attention_timer.cancel()
 
     def update_button_text(self):
-        """Обновляет текст кнопки в зависимости от состояния игры и языка"""
-        if self.current_language == 'Ru':
-            self.start_button.setText(STOP_BUTTON_RU if self.game_active else START_BUTTON_RU)
-        elif self.current_language == 'Ch':
-            self.start_button.setText(STOP_BUTTON_CH if self.game_active else START_BUTTON_CH)
-        else:
-            self.start_button.setText(STOP_BUTTON if self.game_active else START_BUTTON)
+        self.button_text = TEXTS[self.current_language]['stop'] if self.game_active else TEXTS[self.current_language][
+            'start']
+        self.start_button.text = self.button_text
 
-    def update_timer(self):
+    def update_timer(self, dt):
         elapsed = time.time() - self.start_time
         minutes = int(elapsed // 60)
         seconds = int(elapsed % 60)
         milliseconds = int((elapsed % 1) * 1000)
-        self.timer_label.setText(f"{minutes:02d}:{seconds:02d}.{milliseconds:03d}")
+        self.timer_text = f"{minutes:02d}:{seconds:02d}.{milliseconds:03d}"
+        self.timer_label.text = self.timer_text
 
-    def attention_timeout(self):
+    def attention_timeout(self, dt):
         if self.game_active:
-            max_cells = self.rows_spin.value() * self.cols_spin.value()
+            max_cells = self.rows_spin * self.cols_spin
             if self.current_target <= max_cells:
                 self.increment_target()
-                self.generate_table()
+                self.table.generate_table(self.rows_spin, self.cols_spin)
             else:
-                self.attention_timer.stop()
-
-    def cell_clicked(self, row, col):
-        if not self.game_active:
-            return
-
-        mode = self.game_mode_combo.currentData()
-        item = self.table.item(row, col)
-
-        if mode in [MODE_CLICK_UPDATE, MODE_TAP_GAME]:
-            if item and item.text() == str(self.current_target):
-                self.increment_target()
-                if mode == MODE_CLICK_UPDATE:
-                    self.generate_table()
+                self.attention_timer.cancel()
 
     def increment_target(self):
-        max_cells = self.rows_spin.value() * self.cols_spin.value()
+        max_cells = self.rows_spin * self.cols_spin
         if self.current_target <= max_cells:
             self.current_target += 1
             if self.current_target > max_cells:
-                self.target_label.setText(str(max_cells))
+                self.target_text = str(max_cells)
+                self.target_label.color = [0, 0.5, 0, 1]  # Green for completed
             else:
-                self.target_label.setText(str(self.current_target))
-            self.update_target_label_style()
+                self.target_text = str(self.current_target)
+                self.target_label.color = [0, 0, 1, 1]  # Blue for current target
+            self.target_label.text = self.target_text
 
         if self.current_target > max_cells:
             self.stop_game()
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Space:
-            self.toggle_game()
+    def on_key_down(self, window, key, *args):
+        if key == 32:  # Space key
+            self.toggle_game(None)
+
+    def on_start(self):
+        Window.bind(on_key_down=self.on_key_down)
 
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = SchulteTableApp()
-    ex.show()
-    sys.exit(app.exec_())
+    SchulteTableApp().run()
